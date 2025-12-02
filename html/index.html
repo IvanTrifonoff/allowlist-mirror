@@ -322,6 +322,7 @@
 
     async function runSelfTest() {
         log("=== ЗАПУСК ДИАГНОСТИКИ ===", 'warn');
+        
         log("1. Проверка API...");
         try {
             const t1 = Date.now();
@@ -331,7 +332,19 @@
         } catch (e) {
             log(`   ПРОВАЛ: Сервер недоступен.`, 'err');
         }
-        // ... (остальные тесты без изменений)
+
+        log("2. Тест контрольного узла (Yandex)...");
+        const resYa = await probeIP('77.88.8.8');
+        if (resYa.ok) log(`   OK! (${resYa.time}мс).`, 'ok');
+        else log(`   ОШИБКА: Нет интернета.`, 'err');
+
+        log("3. Тест внешнего контура...");
+        const resG = await probeIP('www.google.com');
+        if (resG.ok) {
+            log(`   ДОСТУПЕН (${resG.time}мс). Вы на ОБЫЧНОМ интернете.`, 'warn');
+        } else {
+            log(`   НЕДОСТУПЕН (Таймаут). Вы в БЕЛОМ СПИСКЕ.`, 'ok');
+        }
         log("=== КОНЕЦ ===");
     }
 </script>
