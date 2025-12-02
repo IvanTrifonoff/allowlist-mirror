@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhiteList Scanner</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #0f0; }
+        .box { border: 1px solid #333; padding: 15px; margin-bottom: 20px; border-radius: 5px; background: #222; }
+        button { cursor: pointer; padding: 10px 20px; background: #004400; color: #fff; border: 1px solid #0f0; font-family: monospace; margin-right: 10px; font-size: 14px; }
+        button:hover { background: #006600; }
+        button.debug { background: #444; border-color: #888; color: #ddd; }
+        select { padding: 10px; background: #000; color: #fff; border: 1px solid #333; margin-bottom: 10px; width: 100%; font-size: 14px; }
+        #logs { white-space: pre-wrap; word-wrap: break-word; font-size: 12px; color: #aaa; max-height: 400px; overflow-y: auto; background: #000; padding: 10px; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+
+    <h1>📡 Allowlist Scanner v1.3</h1>
+
+    <div class="box">
+        <h3>1. Настройка</h3>
+        <label>Выберите ваш регион:</label>
+        <select id="region-select">
+            <option value="">-- Не выбран --</option>
+            <option value="RU-MOW">Москва</option>
+            <option value="RU-SPE">Санкт-Петербург</option>
+            <option value="RU-AD">Адыгея</option>
+            <option value="RU-AL">Алтай (Республика)</option>
+            <option value="RU-ALT">Алтайский край</option>
+            <option value="RU-AMU">Амурская область</option>
+            <option value="RU-ARK">Архангельская область</option>
+            <option value="RU-AST">Астраханская область</option>
+            <option value="RU-BA">Башкортостан</option>
+            <option value="RU-BEL">Белгородская область</option>
+            <option value="RU-BRY">Брянская область</option>
+            <option value="RU-BU">Бурятия</option>
+            <option value="RU-VLA">Владимирская область</option>
+            <option value="RU-VGG">Волгоградская область</option>
+            <option value="RU-VLG">Вологодская область</option>
+            <option value="RU-VOR">Воронежская область</option>
+            <option value="RU-DA">Дагестан</option>
+            <option value="RU-JE">Еврейская АО</option>
+            <option value="RU-ZAB">Забайкальский край</option>
+            <option value="RU-IVA">Ивановская область</option>
+            <option value="RU-IN">Ингушетия</option>
+            <option value="RU-IRK">Иркутская область</option>
+            <option value="RU-KB">Кабардино-Балкария</option>
+            <option value="RU-KGD">Калининградская область</option>
+            <option value="RU-KL">Калмыкия</option>
+            <option value="RU-KLU">Калужская область</option>
+            <option value="RU-KAM">Камчатский край</option>
+            <option value="RU-KC">Карачаево-Черкесия</option>
+            <option value="RU-KR">Карелия</option>
+            <option value="RU-KEM">Кемеровская область</option>
+            <option value="RU-KIR">Кировская область</option>
+            <option value="RU-KO">Коми</option>
+            <option value="RU-KOS">Костромская область</option>
+            <option value="RU-KDA">Краснодарский край</option>
+            <option value="RU-KYA">Красноярский край</option>
+            <option value="RU-CRM">Крым</option>
+            <option value="RU-KGN">Курганская область</option>
+            <option value="RU-KRS">Курская область</option>
+            <option value="RU-LEN">Ленинградская область</option>
+            <option value="RU-LIP">Липецкая область</option>
+            <option value="RU-MAG">Магаданская область</option>
+            <option value="RU-ME">Марий Эл</option>
+            <option value="RU-MO">Мордовия</option>
+            <option value="RU-MOS">Московская область</option>
+            <option value="RU-MUR">Мурманская область</option>
+            <option value="RU-NEN">Ненецкий АО</option>
+            <option value="RU-NIZ">Нижегородская область</option>
+            <option value="RU-NGR">Новгородская область</option>
+            <option value="RU-NVS">Новосибирская область</option>
+            <option value="RU-OMS">Омская область</option>
+            <option value="RU-ORE">Оренбургская область</option>
+            <option value="RU-ORL">Орловская область</option>
+            <option value="RU-PNZ">Пензенская область</option>
+            <option value="RU-PER">Пермский край</option>
+            <option value="RU-PRI">Приморский край</option>
+            <option value="RU-PSK">Псковская область</option>
+            <option value="RU-ROS">Ростовская область</option>
+            <option value="RU-RYA">Рязанская область</option>
+            <option value="RU-SAM">Самарская область</option>
+            <option value="RU-SAR">Саратовская область</option>
+            <option value="RU-SA">Саха (Якутия)</option>
+            <option value="RU-SAK">Сахалинская область</option>
+            <option value="RU-SVE">Свердловская область</option>
+            <option value="RU-SEV">Севастополь</option>
+            <option value="RU-SE">Северная Осетия</option>
+            <option value="RU-SMO">Смоленская область</option>
+            <option value="RU-STA">Ставропольский край</option>
+            <option value="RU-TAM">Тамбовская область</option>
+            <option value="RU-TA">Татарстан</option>
+            <option value="RU-TVE">Тверская область</option>
+            <option value="RU-TOM">Томская область</option>
+            <option value="RU-TUL">Тульская область</option>
+            <option value="RU-TY">Тыва</option>
+            <option value="RU-TYU">Тюменская область</option>
+            <option value="RU-UD">Удмуртия</option>
+            <option value="RU-ULY">Ульяновская область</option>
+            <option value="RU-KHA">Хабаровский край</option>
+            <option value="RU-KK">Хакасия</option>
+            <option value="RU-KHM">Ханты-Мансийский АО</option>
+            <option value="RU-CHE">Челябинская область</option>
+            <option value="RU-CE">Чечня</option>
+            <option value="RU-CU">Чувашия</option>
+            <option value="RU-CHU">Чукотский АО</option>
+            <option value="RU-YAM">Ямало-Ненецкий АО</option>
+            <option value="RU-YAR">Ярославская область</option>
+            <option value="OTHER">-- Другое / VPN --</option>
+        </select>
+    </div>
+
+    <div class="box">
+        <h3>2. Управление</h3>
+        <button onclick="startTest('express')">🚀 Экспресс Тест</button>
+        <button onclick="startTest('full')">📡 Полный Скан</button>
+        <hr style="border-color: #333; margin: 15px 0;">
+        <button class="debug" onclick="runSelfTest()">🛠 Диагностика (Debug)</button>
+    </div>
+
+    <div class="box">
+        <h3>3. Лог операций</h3>
+        <div id="logs">Система готова. Выберите регион и нажмите кнопку запуска...</div>
+    </div>
+
+<script>
+    const API_BASE = '/api'; 
+
+    function log(msg, type='') {
+        const el = document.getElementById('logs');
+        let color = '#aaa';
+        if (type === 'ok') color = '#0f0';
+        if (type === 'err') color = '#f00';
+        if (type === 'warn') color = '#ff0';
+        if (type === 'info') color = '#0ff';
+        
+        const span = `<div style="color:${color}; margin-bottom: 4px;">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        el.innerHTML += span;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    // --- ОСНОВНАЯ ФУНКЦИЯ ТЕСТИРОВАНИЯ ---
+    async function startTest(mode) {
+        const region = document.getElementById('region-select').value;
+        if (!region) { alert("Пожалуйста, выберите ваш регион из списка!"); return; }
+
+        log(`Инициализация проверки (${mode})...`, 'info');
+
+        // ЭТАП 0: Проверка окружения (Канарейка)
+        log("Анализ сетевого окружения...", 'warn');
+        // Проверяем ресурс, который ДОЛЖЕН БЫТЬ ЗАБЛОКИРОВАН
+        const canary = await probeIP('www.google.com'); 
+        
+        if (canary.ok) {
+            // Google доступен -> Обычный интернет
+            log("⚠️ Сканирование не требуется.", 'warn');
+            log("Ваше текущее сетевое окружение не соответствует критериям для сбора данных.", 'info');
+            log("Спасибо за участие. Отправка отчета отменена.", 'info');
+            return; // ПРЕРЫВАЕМ ВЫПОЛНЕНИЕ
+        } else {
+            log("✅ Окружение подходит для тестирования.", 'ok');
+            log("Начинаем сбор данных...", 'ok');
+        }
+        
+        try {
+            // ЭТАП 1: Получение задач
+            const response = await fetch(`${API_BASE}/tasks?mode=${mode}`);
+            if (!response.ok) throw new Error(`Ошибка связи с сервером: ${response.status}`);
+            const subnets = await response.json();
+            
+            if (!subnets || subnets.length === 0) {
+                log("Нет активных задач для вашего узла.", 'err');
+                return;
+            }
+
+            log(`Получено целей: ${subnets.length}`, 'info');
+            
+            const results = [];
+            
+            // ЭТАП 2: Сканирование
+            for (let i = 0; i < subnets.length; i++) {
+                const sub = subnets[i];
+                log(`[${i+1}/${subnets.length}] Проверка узла #${sub.id}...`);
+                
+                if (sub.target_ip_1) {
+                    const res = await probeIP(sub.target_ip_1);
+                    results.push(makeResult(sub.id, sub.target_ip_1, res));
+                }
+                if (sub.target_ip_2 && sub.target_ip_2 !== sub.target_ip_1) {
+                    const res = await probeIP(sub.target_ip_2);
+                    results.push(makeResult(sub.id, sub.target_ip_2, res));
+                }
+            }
+            
+            // ЭТАП 3: Отправка
+            log(`Шифрование и отправка результатов...`);
+            await fetch(`${API_BASE}/submit`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ manual_region: region, results: results })
+            });
+            
+            log("✅ Данные успешно переданы. Спасибо за помощь!", 'ok');
+            
+        } catch (e) {
+            log(`Ошибка выполнения: ${e.message}`, 'err');
+        }
+    }
+
+    function makeResult(sid, ip, res) {
+        return { subnet_id: sid, ip_tested: ip, is_accessible: res.ok, latency_ms: res.time };
+    }
+
+    // --- ФУНКЦИЯ ПРОЗВОНА (Probe) ---
+    async function probeIP(ip) {
+        const start = Date.now();
+        const timeout = 5000; 
+        
+        try {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            
+            const target = ip.includes(':') ? `https://[${ip}]` : `https://${ip}`;
+
+            await fetch(target, { 
+                mode: 'no-cors', 
+                cache: 'no-store',
+                signal: controller.signal 
+            });
+            
+            clearTimeout(id);
+            return { ok: true, time: Date.now() - start }; 
+            
+        } catch (err) {
+            const time = Date.now() - start;
+            if (err.name === 'AbortError') return { ok: false, time: time };
+            if (time < 2000) return { ok: true, time: time };
+            return { ok: false, time: time };
+        }
+    }
+
+    // --- РЕЖИМ ОТЛАДКИ ---
+    async function runSelfTest() {
+        log("=== ЗАПУСК ДИАГНОСТИКИ ===", 'warn');
+        
+        log("1. Проверка API...");
+        try {
+            const t1 = Date.now();
+            const res = await fetch(`${API_BASE}/tasks?mode=express`);
+            if (res.ok) log(`   OK! (${Date.now()-t1}мс)`, 'ok');
+            else log(`   Ошибка HTTP ${res.status}`, 'err');
+        } catch (e) {
+            log(`   ПРОВАЛ: Сервер недоступен.`, 'err');
+        }
+
+        log("2. Тест контрольного узла (Yandex)...");
+        const resYa = await probeIP('77.88.8.8');
+        if (resYa.ok) log(`   OK! (${resYa.time}мс).`, 'ok');
+        else log(`   ОШИБКА: Нет соединения.`, 'err');
+
+        log("3. Тест внешнего контура...");
+        const resG = await probeIP('www.google.com');
+        if (resG.ok) {
+            log(`   Доступ есть (${resG.time}мс). (Обычный интернет)`, 'warn');
+        } else {
+            log(`   Недоступен. (Белый список)`, 'ok');
+        }
+        log("=== КОНЕЦ ===");
+    }
+</script>
+</body>
+</html>
