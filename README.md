@@ -38,7 +38,7 @@ docker build -t allowlist-mirror https://github.com/IvanTrifonoff/allowlist-mirr
 docker run -d \
   --restart=always \
   -p 80:80 \
-  -e BACKEND_URL="http://82.202.141.81:8001" \
+  -e BACKEND_URL="http://white-scan-back.trfnv.ru" \
   -e MIRROR_AUTH_TOKEN="ВСТАВИТЬ_ПОЛУЧЕННЫЙ_ТОКЕН" \
   -e MIRROR_ID_NAME="my_vps_name" \
   --name allowlist-mirror \
