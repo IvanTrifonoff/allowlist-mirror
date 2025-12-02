@@ -125,6 +125,11 @@
         <div id="logs">Система готова. Выберите регион и нажмите кнопку запуска...</div>
     </div>
 
+    <div class="box" style="border-color: #004400;">
+        <h3>📊 Глобальная статистика</h3>
+        <div id="stats-box">Загрузка...</div>
+    </div>
+
 <script>
     const API_BASE = '/api'; 
 
@@ -139,6 +144,34 @@
         const span = `<div style="color:${color}; margin-bottom: 4px;">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
         el.innerHTML += span;
         el.scrollTop = el.scrollHeight;
+    }
+
+    // Загрузка статистики при старте
+    window.onload = loadStats;
+
+    async function loadStats() {
+        try {
+            const res = await fetch(`${API_BASE}/stats`);
+            const data = await res.json();
+            
+            let html = `
+                <p>Всего активных подсетей: <b>${data.total_active_subnets}</b></p>
+                <p>Проведено проверок: <b>${data.total_checks_performed}</b></p>
+                <p style="color: #0f0">Найденных "Белых" диапазонов: <b>${data.found_accessible_subnets}</b></p>
+                <hr style="border-color: #333">
+                <p>Лидеры доступности:</p>
+                <ul>
+            `;
+            
+            data.top_providers.forEach(p => {
+                html += `<li>${p.provider_name}: ${p.wins} успехов</li>`;
+            });
+            html += `</ul>`;
+            
+            document.getElementById('stats-box').innerHTML = html;
+        } catch (e) {
+            document.getElementById('stats-box').innerText = "Не удалось загрузить статистику.";
+        }
     }
 
     // --- ОСНОВНАЯ ФУНКЦИЯ ТЕСТИРОВАНИЯ ---
@@ -203,6 +236,9 @@
             });
             
             log("✅ Данные успешно переданы. Спасибо за помощь!", 'ok');
+            
+            // Обновляем статистику
+            loadStats();
             
         } catch (e) {
             log(`Ошибка выполнения: ${e.message}`, 'err');
