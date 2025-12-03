@@ -18,7 +18,7 @@
 </head>
 <body>
 
-    <h1>📡 Allowlist Scanner v1.4</h1>
+    <h1>📡 Allowlist Scanner v1.5</h1>
 
     <div class="box">
         <h3>1. Настройка</h3>
@@ -217,21 +217,31 @@
         }
         
         let batchCount = 0;
+        const maxBatches = (mode === 'express') ? 5 : 20;
 
         // ЦИКЛ СКАНИРОВАНИЯ
-        while (!stopRequested) {
+        while (!stopRequested && batchCount < maxBatches) {
             batchCount++;
             log(`=== Пакет #${batchCount} ===`, 'info');
             
+            let minPriority = (mode === 'express') ? 10 : 1; // Дефолтный приоритет
+            
+            // Для полного теста: последние 10 пакетов со стандартным рейтингом
+            if (mode === 'full' && batchCount > 10) {
+                minPriority = 5;
+                log(`Приоритет для пакета #${batchCount} установлен на 5 (Стандартный).`, 'info');
+            }
+
             try {
                 // ЭТАП 1: Получение задач
-                const response = await fetch(`${API_BASE}/tasks?mode=${mode}`);
+                const response = await fetch(`${API_BASE}/tasks?mode=${mode}&min_priority=${minPriority}`);
                 if (!response.ok) throw new Error(`Ошибка связи: ${response.status}`);
                 const subnets = await response.json();
                 
                 if (!subnets || subnets.length === 0) {
                     log("Нет активных задач. Ожидание...", 'warn');
-                    if (mode === 'express') break; // Для экспресса выход сразу
+                    if (mode === 'express' && batchCount >= maxBatches) break; // Для экспресса выход после 5 пакетов, даже если нет задач
+                    if (mode === 'full' && batchCount >= maxBatches) break; // Для полного выход после 20 пакетов
                     await new Promise(r => setTimeout(r, 5000)); // Пауза перед повтором
                     continue;
                 }
@@ -270,9 +280,10 @@
                     loadStats(); // Обновляем стату
                 }
 
-                // Если это Экспресс-тест - выполняем 1 проход и выходим
-                if (mode === 'express') {
-                    log("Экспресс-тест завершен.", 'ok');
+                // Если это Экспресс-тест - выполняем 5 проходов и выходим
+                // или если Полный тест - выполняем 20 проходов и выходим
+                if (batchCount >= maxBatches && !stopRequested) {
+                    log(`${(mode === 'express' ? 'Экспресс-тест' : 'Полный скан')} завершен.`, 'ok');
                     break;
                 }
 
