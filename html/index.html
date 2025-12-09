@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhiteList Scanner v2.0 (Reliable)</title>
+    <title>WhiteList Scanner v2.1</title>
     <style>
         body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #0f0; }
         .box { border: 1px solid #333; padding: 15px; margin-bottom: 20px; border-radius: 5px; background: #222; }
@@ -19,7 +19,7 @@
 </head>
 <body>
 
-    <h1>📡 Allowlist Scanner v2.0 <span id="queue-status"></span></h1>
+    <h1>📡 Allowlist Scanner v2.1 <span id="queue-status"></span></h1>
 
     <div class="box">
         <h3>1. Настройка</h3>
@@ -144,7 +144,7 @@
         constructor() {
             this.queue = [];
             this.isSending = false;
-            this.retryLimit = 10; // Больше попыток
+            this.retryLimit = 10; 
         }
 
         add(data) {
@@ -167,7 +167,7 @@
             this.isSending = true;
 
             const item = this.queue[0];
-            const delay = Math.min(1000 * Math.pow(1.5, item.attempts), 30000); // Экспоненциальная задержка
+            const delay = Math.min(1000 * Math.pow(1.5, item.attempts), 30000); 
 
             try {
                 if (item.attempts > 0) {
@@ -186,7 +186,7 @@
                 }
 
                 log(`✅ Пакет результатов успешно отправлен.`, 'ok');
-                this.queue.shift(); // Удаляем из очереди только после успеха
+                this.queue.shift(); 
                 loadStats();
 
             } catch (e) {
@@ -199,7 +199,7 @@
             } finally {
                 this.isSending = false;
                 this.updateStatus();
-                if (this.queue.length > 0) this.process(); // Рекурсивный вызов для следующего
+                if (this.queue.length > 0) this.process();
             }
         }
     }
@@ -219,7 +219,6 @@
         el.scrollTop = el.scrollHeight;
     }
 
-    // Загрузка статистики при старте
     window.onload = loadStats;
 
     async function loadStats() {
@@ -263,6 +262,24 @@
         }
     }
 
+    // --- КАНАРЕЙКА (Multi-target) ---
+    const CANARY_TARGETS = [
+        'www.google.com',
+        'www.cloudflare.com',
+        'www.github.com',
+        'www.microsoft.com'
+    ];
+
+    async function checkEnvironment() {
+        let successCount = 0;
+        // Проверяем параллельно для скорости
+        const promises = CANARY_TARGETS.map(target => probeIP(target));
+        const results = await Promise.all(promises);
+        
+        successCount = results.filter(r => r.ok).length;
+        return successCount >= 2; // Если доступны 2 или более, считаем интернет "открытым"
+    }
+
     // --- ОСНОВНАЯ ФУНКЦИЯ ТЕСТИРОВАНИЯ ---
     async function startTest(mode) {
         const region = document.getElementById('region-select').value;
@@ -272,13 +289,13 @@
         stopRequested = false;
         log(`Инициализация проверки (${mode})...`, 'info');
 
-        // ЭТАП 0: Проверка окружения
+        // ЭТАП 0: Проверка окружения (Multi-target)
         log("Анализ сетевого окружения...", 'warn');
-        const canary = await probeIP('www.google.com'); 
+        const isNormalInternet = await checkEnvironment();
         
-        if (canary.ok) {
+        if (isNormalInternet) {
             log("⚠️ Сканирование не требуется.", 'warn');
-            log("Ваше текущее сетевое окружение не соответствует критериям (Google доступен).", 'info');
+            log("Ваше текущее сетевое окружение не соответствует критериям.", 'info');
             toggleUI(false);
             return; 
         } else {
@@ -288,7 +305,6 @@
         let batchCount = 0;
         const maxBatches = (mode === 'express') ? 5 : 20;
 
-        // ЦИКЛ СКАНИРОВАНИЯ
         while (!stopRequested && batchCount < maxBatches) {
             batchCount++;
             log(`=== Пакет #${batchCount} ===`, 'info');
@@ -297,7 +313,6 @@
             if (mode === 'full' && batchCount > 10) minPriority = 5;
 
             try {
-                // ЭТАП 1: Получение задач
                 const response = await fetch(`${API_BASE}/tasks?mode=${mode}&min_priority=${minPriority}`);
                 if (!response.ok) throw new Error(`API Tasks Error: ${response.status}`);
                 const subnets = await response.json();
@@ -313,7 +328,6 @@
                 log(`Сканирование ${subnets.length} целей...`);
                 const results = [];
                 
-                // ЭТАП 2: Сканирование пакета
                 for (let i = 0; i < subnets.length; i++) {
                     if (stopRequested) break;
 
@@ -331,7 +345,6 @@
                     }
                 }
                 
-                // ЭТАП 3: Отправка результатов В ОЧЕРЕДЬ
                 if (results.length > 0) {
                     log(`Результаты (${results.length}) добавлены в очередь отправки.`);
                     sender.add({ manual_region: region, results: results });
@@ -367,7 +380,6 @@
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), timeout);
             
-            // Используем HTTPS для проверки доступности (SSL handshake failure = доступен)
             const target = ip.includes(':') ? `https://[${ip}]` : `https://${ip}`;
 
             await fetch(target, { 
@@ -377,19 +389,11 @@
             });
             
             clearTimeout(id);
-            // Если fetch завершился (даже с ошибкой SSL в режиме no-cors), значит хост доступен
             return { ok: true, time: Date.now() - start }; 
             
         } catch (err) {
             const time = Date.now() - start;
-            if (err.name === 'AbortError') return { ok: false, time: time }; // Таймаут
-            
-            // Эвристика: если ошибка произошла очень быстро (< 2000ms), 
-            // это может быть "Connection Refused" (RST), что тоже значит "Доступен" (но порт закрыт).
-            // Но для проверки блокировки DPI важнее таймаут.
-            // Если fetch вернул ошибку "TypeError: Failed to fetch" (сетевая ошибка), 
-            // в режиме no-cors мы не знаем точную причину.
-            // Но если это не таймаут, значит соединение было установлено и разорвано.
+            if (err.name === 'AbortError') return { ok: false, time: time }; 
             return { ok: true, time: time }; 
         }
     }
@@ -407,22 +411,16 @@
             log(`   ПРОВАЛ: Сервер недоступен.`, 'err');
         }
 
-        log("2. Тест контрольного узла (Yandex)...");
-        const resYa = await probeIP('77.88.8.8');
-        if (resYa.ok) log(`   OK! (${resYa.time}мс).`, 'ok');
-        else log(`   ОШИБКА: Нет интернета.`, 'err');
-
-        log("3. Тест внешнего контура...");
-        const resG = await probeIP('www.google.com');
-        if (resG.ok) {
-            log(`   ДОСТУПЕН (${resG.time}мс). Вы на ОБЫЧНОМ интернете.`, 'warn');
+        log("2. Анализ окружения...");
+        const isNormal = await checkEnvironment();
+        if (isNormal) {
+             log(`   Доступ к внешнему интернету ЕСТЬ.`, 'warn');
         } else {
-            log(`   НЕДОСТУПЕН (Таймаут). Вы в БЕЛОМ СПИСКЕ.`, 'ok');
+             log(`   Внешний интернет НЕДОСТУПЕН.`, 'ok');
         }
         
-        log("4. Тест отправки (POST)...");
+        log("3. Тест отправки (POST)...");
         try {
-             // Тестовая отправка пустого результата
              const res = await fetch(`${API_BASE}/submit`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
