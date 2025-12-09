@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhiteList Scanner</title>
+    <title>WhiteList Scanner v2.0 (Reliable)</title>
     <style>
         body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #0f0; }
         .box { border: 1px solid #333; padding: 15px; margin-bottom: 20px; border-radius: 5px; background: #222; }
@@ -14,11 +14,12 @@
         button.debug { background: #444; border-color: #888; color: #ddd; }
         select { padding: 10px; background: #000; color: #fff; border: 1px solid #333; margin-bottom: 10px; width: 100%; font-size: 14px; }
         #logs { white-space: pre-wrap; word-wrap: break-word; font-size: 12px; color: #aaa; max-height: 400px; overflow-y: auto; background: #000; padding: 10px; border: 1px solid #333; }
+        #queue-status { float: right; color: #ff0; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>📡 Allowlist Scanner v1.5</h1>
+    <h1>📡 Allowlist Scanner v2.0 <span id="queue-status"></span></h1>
 
     <div class="box">
         <h3>1. Настройка</h3>
@@ -138,6 +139,73 @@
     let isScanning = false;
     let stopRequested = false;
 
+    // --- КЛАСС ОТПРАВКИ РЕЗУЛЬТАТОВ (Очередь + Retry) ---
+    class ResultSender {
+        constructor() {
+            this.queue = [];
+            this.isSending = false;
+            this.retryLimit = 10; // Больше попыток
+        }
+
+        add(data) {
+            this.queue.push({ data: data, attempts: 0 });
+            this.updateStatus();
+            this.process();
+        }
+
+        updateStatus() {
+            const el = document.getElementById('queue-status');
+            if (this.queue.length > 0) {
+                el.innerText = `[Очередь: ${this.queue.length}]`;
+            } else {
+                el.innerText = "";
+            }
+        }
+
+        async process() {
+            if (this.isSending || this.queue.length === 0) return;
+            this.isSending = true;
+
+            const item = this.queue[0];
+            const delay = Math.min(1000 * Math.pow(1.5, item.attempts), 30000); // Экспоненциальная задержка
+
+            try {
+                if (item.attempts > 0) {
+                    await new Promise(r => setTimeout(r, delay));
+                    log(`🔄 Повторная отправка пакета (попытка ${item.attempts + 1})...`, 'warn');
+                }
+
+                const response = await fetch(`${API_BASE}/submit`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(item.data)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                log(`✅ Пакет результатов успешно отправлен.`, 'ok');
+                this.queue.shift(); // Удаляем из очереди только после успеха
+                loadStats();
+
+            } catch (e) {
+                log(`❌ Ошибка отправки: ${e.message}. Повторим через ${Math.ceil(delay/1000)}с`, 'err');
+                item.attempts++;
+                if (item.attempts >= this.retryLimit) {
+                    log(`💀 Не удалось отправить пакет после ${this.retryLimit} попыток. Данные потеряны.`, 'err');
+                    this.queue.shift();
+                }
+            } finally {
+                this.isSending = false;
+                this.updateStatus();
+                if (this.queue.length > 0) this.process(); // Рекурсивный вызов для следующего
+            }
+        }
+    }
+
+    const sender = new ResultSender();
+
     function log(msg, type='') {
         const el = document.getElementById('logs');
         let color = '#aaa';
@@ -157,6 +225,7 @@
     async function loadStats() {
         try {
             const res = await fetch(`${API_BASE}/stats`);
+            if (!res.ok) throw new Error("Stats error");
             const data = await res.json();
             
             let html = `
@@ -175,7 +244,7 @@
             
             document.getElementById('stats-box').innerHTML = html;
         } catch (e) {
-            document.getElementById('stats-box').innerText = "Не удалось загрузить статистику.";
+            document.getElementById('stats-box').innerText = "Статистика недоступна (ошибка связи).";
         }
     }
 
@@ -203,13 +272,13 @@
         stopRequested = false;
         log(`Инициализация проверки (${mode})...`, 'info');
 
-        // ЭТАП 0: Проверка окружения (Канарейка) - Один раз перед циклом
+        // ЭТАП 0: Проверка окружения
         log("Анализ сетевого окружения...", 'warn');
         const canary = await probeIP('www.google.com'); 
         
         if (canary.ok) {
             log("⚠️ Сканирование не требуется.", 'warn');
-            log("Ваше текущее сетевое окружение не соответствует критериям.", 'info');
+            log("Ваше текущее сетевое окружение не соответствует критериям (Google доступен).", 'info');
             toggleUI(false);
             return; 
         } else {
@@ -224,25 +293,20 @@
             batchCount++;
             log(`=== Пакет #${batchCount} ===`, 'info');
             
-            let minPriority = (mode === 'express') ? 10 : 1; // Дефолтный приоритет
-            
-            // Для полного теста: последние 10 пакетов со стандартным рейтингом
-            if (mode === 'full' && batchCount > 10) {
-                minPriority = 5;
-                log(`Приоритет для пакета #${batchCount} установлен на 5 (Стандартный).`, 'info');
-            }
+            let minPriority = (mode === 'express') ? 10 : 1; 
+            if (mode === 'full' && batchCount > 10) minPriority = 5;
 
             try {
                 // ЭТАП 1: Получение задач
                 const response = await fetch(`${API_BASE}/tasks?mode=${mode}&min_priority=${minPriority}`);
-                if (!response.ok) throw new Error(`Ошибка связи: ${response.status}`);
+                if (!response.ok) throw new Error(`API Tasks Error: ${response.status}`);
                 const subnets = await response.json();
                 
                 if (!subnets || subnets.length === 0) {
                     log("Нет активных задач. Ожидание...", 'warn');
-                    if (mode === 'express' && batchCount >= maxBatches) break; // Для экспресса выход после 5 пакетов, даже если нет задач
-                    if (mode === 'full' && batchCount >= maxBatches) break; // Для полного выход после 20 пакетов
-                    await new Promise(r => setTimeout(r, 5000)); // Пауза перед повтором
+                    if (mode === 'express' && batchCount >= maxBatches) break;
+                    if (mode === 'full' && batchCount >= maxBatches) break;
+                    await new Promise(r => setTimeout(r, 5000));
                     continue;
                 }
 
@@ -251,7 +315,7 @@
                 
                 // ЭТАП 2: Сканирование пакета
                 for (let i = 0; i < subnets.length; i++) {
-                    if (stopRequested) break; // Прерываем внутри пакета
+                    if (stopRequested) break;
 
                     const sub = subnets[i];
                     
@@ -259,7 +323,6 @@
                         const res = await probeIP(sub.target_ip_1);
                         results.push(makeResult(sub.id, sub.target_ip_1, res));
                     }
-                    // Небольшая пауза между IP, чтобы не вешать браузер
                     await new Promise(r => setTimeout(r, 100));
 
                     if (sub.target_ip_2 && sub.target_ip_2 !== sub.target_ip_1) {
@@ -268,28 +331,20 @@
                     }
                 }
                 
-                // ЭТАП 3: Отправка результатов пакета
+                // ЭТАП 3: Отправка результатов В ОЧЕРЕДЬ
                 if (results.length > 0) {
-                    log(`Отправка ${results.length} результатов...`);
-                    await fetch(`${API_BASE}/submit`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ manual_region: region, results: results })
-                    });
-                    log("✅ Пакет сохранен.", 'ok');
-                    loadStats(); // Обновляем стату
+                    log(`Результаты (${results.length}) добавлены в очередь отправки.`);
+                    sender.add({ manual_region: region, results: results });
                 }
 
-                // Если это Экспресс-тест - выполняем 5 проходов и выходим
-                // или если Полный тест - выполняем 20 проходов и выходим
                 if (batchCount >= maxBatches && !stopRequested) {
                     log(`${(mode === 'express' ? 'Экспресс-тест' : 'Полный скан')} завершен.`, 'ok');
                     break;
                 }
 
             } catch (e) {
-                log(`Ошибка выполнения: ${e.message}`, 'err');
-                await new Promise(r => setTimeout(r, 5000)); // Пауза при ошибке
+                log(`Ошибка выполнения цикла: ${e.message}`, 'err');
+                await new Promise(r => setTimeout(r, 5000)); 
             }
         }
 
@@ -312,6 +367,7 @@
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), timeout);
             
+            // Используем HTTPS для проверки доступности (SSL handshake failure = доступен)
             const target = ip.includes(':') ? `https://[${ip}]` : `https://${ip}`;
 
             await fetch(target, { 
@@ -321,13 +377,20 @@
             });
             
             clearTimeout(id);
+            // Если fetch завершился (даже с ошибкой SSL в режиме no-cors), значит хост доступен
             return { ok: true, time: Date.now() - start }; 
             
         } catch (err) {
             const time = Date.now() - start;
-            if (err.name === 'AbortError') return { ok: false, time: time };
-            if (time < 2000) return { ok: true, time: time };
-            return { ok: false, time: time };
+            if (err.name === 'AbortError') return { ok: false, time: time }; // Таймаут
+            
+            // Эвристика: если ошибка произошла очень быстро (< 2000ms), 
+            // это может быть "Connection Refused" (RST), что тоже значит "Доступен" (но порт закрыт).
+            // Но для проверки блокировки DPI важнее таймаут.
+            // Если fetch вернул ошибку "TypeError: Failed to fetch" (сетевая ошибка), 
+            // в режиме no-cors мы не знаем точную причину.
+            // Но если это не таймаут, значит соединение было установлено и разорвано.
+            return { ok: true, time: time }; 
         }
     }
 
@@ -356,6 +419,21 @@
         } else {
             log(`   НЕДОСТУПЕН (Таймаут). Вы в БЕЛОМ СПИСКЕ.`, 'ok');
         }
+        
+        log("4. Тест отправки (POST)...");
+        try {
+             // Тестовая отправка пустого результата
+             const res = await fetch(`${API_BASE}/submit`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ manual_region: "TEST_DIAGNOSTIC", results: [] })
+            });
+            if (res.ok) log("   POST OK! Связь с бэкендом есть.", 'ok');
+            else log(`   POST ОШИБКА: ${res.status}`, 'err');
+        } catch(e) {
+            log(`   POST ПРОВАЛ: ${e.message}`, 'err');
+        }
+
         log("=== КОНЕЦ ===");
     }
 </script>
