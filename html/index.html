@@ -148,7 +148,9 @@
 <div class="container">
     <h1>
         📡 Allowlist Scanner
-        <span id="mirror-id">v3.2</span>
+        <span id="header-info" style="font-size: 14px; color: #8b949e; font-weight: normal;">
+            v3.3 <span id="queue-status" style="color: #e3b341; margin-left: 10px;"></span>
+        </span>
     </h1>
 
     <!-- Panel 1: Settings & Status -->
@@ -554,8 +556,12 @@
         }
 
         updateStatus() {
-            // Можно добавить визуальный индикатор очереди в будущем
-            // console.log(`Queue size: ${this.queue.length}`);
+            const el = document.getElementById('queue-status');
+            if (this.queue.length > 0) {
+                el.innerText = `[Очередь: ${this.queue.length}]`;
+            } else {
+                el.innerText = "";
+            }
         }
 
         async process() {
