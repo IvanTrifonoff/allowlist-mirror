@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Allowlist Scanner v3.1</title>
+    <title>Allowlist Scanner v3.2</title>
     <style>
         :root {
             --bg-color: #0d1117;
@@ -148,7 +148,7 @@
 <div class="container">
     <h1>
         📡 Allowlist Scanner
-        <span id="mirror-id">v3.1</span>
+        <span id="mirror-id">v3.2</span>
     </h1>
 
     <!-- Panel 1: Settings & Status -->
@@ -171,10 +171,10 @@
             <button id="btn-start" class="btn-primary" onclick="startScan()">Запустить сканирование</button>
             <button id="btn-stop" class="btn-danger hidden" onclick="stopScan()">Остановить</button>
             <select id="concurrency-select" style="width: 140px;" title="Количество потоков">
-                <option value="5">5 потоков</option>
-                <option value="10" selected>10 потоков</option>
-                <option value="20">20 потоков</option>
-                <option value="50">50 (High Load)</option>
+                <option value="3">3 потока</option>
+                <option value="5" selected>5 потоков</option>
+                <option value="8">8 потоков</option>
+                <option value="10">10 потоков</option>
             </select>
             <button class="btn-debug" onclick="runSelfTest()">🛠 Test</button>
         </div>
@@ -210,12 +210,91 @@
     // --- CONFIG ---
     const API_BASE = '/api';
     const REGIONS = [
-        {code: "RU-MOW", name: "Москва"}, {code: "RU-SPE", name: "Санкт-Петербург"},
-        {code: "RU-KDA", name: "Краснодарский край"}, {code: "RU-SVE", name: "Свердловская обл."},
-        {code: "RU-TA", name: "Татарстан"}, {code: "RU-NVS", name: "Новосибирская обл."},
-        {code: "RU-ROS", name: "Ростовская обл."}, {code: "RU-SAM", name: "Самарская обл."},
-        {code: "RU-VGG", name: "Волгоградская обл."}, {code: "RU-BA", name: "Башкортостан"},
-        {code: "RU-KHM", name: "Ханты-Мансийский АО"}, {code: "RU-TYU", name: "Тюменская обл."},
+        {code: "RU-MOW", name: "Москва"},
+        {code: "RU-SPE", name: "Санкт-Петербург"},
+        {code: "RU-AD", name: "Адыгея"},
+        {code: "RU-AL", name: "Алтай (Республика)"},
+        {code: "RU-ALT", name: "Алтайский край"},
+        {code: "RU-AMU", name: "Амурская область"},
+        {code: "RU-ARK", name: "Архангельская область"},
+        {code: "RU-AST", name: "Астраханская область"},
+        {code: "RU-BA", name: "Башкортостан"},
+        {code: "RU-BEL", name: "Белгородская область"},
+        {code: "RU-BRY", name: "Брянская область"},
+        {code: "RU-BU", name: "Бурятия"},
+        {code: "RU-VLA", name: "Владимирская область"},
+        {code: "RU-VGG", name: "Волгоградская область"},
+        {code: "RU-VLG", name: "Вологодская область"},
+        {code: "RU-VOR", name: "Воронежская область"},
+        {code: "RU-DA", name: "Дагестан"},
+        {code: "RU-JE", name: "Еврейская АО"},
+        {code: "RU-ZAB", name: "Забайкальский край"},
+        {code: "RU-IVA", name: "Ивановская область"},
+        {code: "RU-IN", name: "Ингушетия"},
+        {code: "RU-IRK", name: "Иркутская область"},
+        {code: "RU-KB", name: "Кабардино-Балкария"},
+        {code: "RU-KGD", name: "Калининградская область"},
+        {code: "RU-KL", name: "Калмыкия"},
+        {code: "RU-KLU", name: "Калужская область"},
+        {code: "RU-KAM", name: "Камчатский край"},
+        {code: "RU-KC", name: "Карачаево-Черкесия"},
+        {code: "RU-KR", name: "Карелия"},
+        {code: "RU-KEM", name: "Кемеровская область"},
+        {code: "RU-KIR", name: "Кировская область"},
+        {code: "RU-KO", name: "Коми"},
+        {code: "RU-KOS", name: "Костромская область"},
+        {code: "RU-KDA", name: "Краснодарский край"},
+        {code: "RU-KYA", name: "Красноярский край"},
+        {code: "RU-CRM", name: "Крым"},
+        {code: "RU-KGN", name: "Курганская область"},
+        {code: "RU-KRS", name: "Курская область"},
+        {code: "RU-LEN", name: "Ленинградская область"},
+        {code: "RU-LIP", name: "Липецкая область"},
+        {code: "RU-MAG", name: "Магаданская область"},
+        {code: "RU-ME", name: "Марий Эл"},
+        {code: "RU-MO", name: "Мордовия"},
+        {code: "RU-MOS", name: "Московская область"},
+        {code: "RU-MUR", name: "Мурманская область"},
+        {code: "RU-NEN", name: "Ненецкий АО"},
+        {code: "RU-NIZ", name: "Нижегородская область"},
+        {code: "RU-NGR", name: "Новгородская область"},
+        {code: "RU-NVS", name: "Новосибирская область"},
+        {code: "RU-OMS", name: "Омская область"},
+        {code: "RU-ORE", name: "Оренбургская область"},
+        {code: "RU-ORL", name: "Орловская область"},
+        {code: "RU-PNZ", name: "Пензенская область"},
+        {code: "RU-PER", name: "Пермский край"},
+        {code: "RU-PRI", name: "Приморский край"},
+        {code: "RU-PSK", name: "Псковская область"},
+        {code: "RU-ROS", name: "Ростовская область"},
+        {code: "RU-RYA", name: "Рязанская область"},
+        {code: "RU-SAM", name: "Самарская область"},
+        {code: "RU-SAR", name: "Саратовская область"},
+        {code: "RU-SA", name: "Саха (Якутия)"},
+        {code: "RU-SAK", name: "Сахалинская область"},
+        {code: "RU-SVE", name: "Свердловская область"},
+        {code: "RU-SEV", name: "Севастополь"},
+        {code: "RU-SE", name: "Северная Осетия"},
+        {code: "RU-SMO", name: "Смоленская область"},
+        {code: "RU-STA", name: "Ставропольский край"},
+        {code: "RU-TAM", name: "Тамбовская область"},
+        {code: "RU-TA", name: "Татарстан"},
+        {code: "RU-TVE", name: "Тверская область"},
+        {code: "RU-TOM", name: "Томская область"},
+        {code: "RU-TUL", name: "Тульская область"},
+        {code: "RU-TY", name: "Тыва"},
+        {code: "RU-TYU", name: "Тюменская область"},
+        {code: "RU-UD", name: "Удмуртия"},
+        {code: "RU-ULY", name: "Ульяновская область"},
+        {code: "RU-KHA", name: "Хабаровский край"},
+        {code: "RU-KK", name: "Хакасия"},
+        {code: "RU-KHM", name: "Ханты-Мансийский АО"},
+        {code: "RU-CHE", name: "Челябинская область"},
+        {code: "RU-CE", name: "Чечня"},
+        {code: "RU-CU", name: "Чувашия"},
+        {code: "RU-CHU", name: "Чукотский АО"},
+        {code: "RU-YAM", name: "Ямало-Ненецкий АО"},
+        {code: "RU-YAR", name: "Ярославская область"},
         {code: "OTHER", name: "Другое / VPN"}
     ];
 
@@ -232,7 +311,7 @@
     // --- INIT ---
     window.onload = async () => {
         initRegions();
-        log("Система инициализирована v3.1 (Parallel)", "info");
+        log("Система инициализирована v3.2", "info");
         await detectLocation();
     };
 
@@ -298,8 +377,7 @@
         const ru = await check(ruTarget);
         if (!ru.ok) {
             log("   ⚠️ Ошибка: Яндекс недоступен. Нет интернета?", 'err');
-            // Если нет Яндекса, считаем что интернета нет, работать бессмысленно.
-            return false; // Запуск разрешаем (на удачу), но скорее всего упадет.
+            return false; // Разрешаем запуск (на удачу)
         }
         log(`   ✅ RU доступен (${ru.time}ms)`, 'ok');
 
@@ -362,7 +440,7 @@
                 log(`Пакет: ${ipQueue.length} IP. Обработка...`, "info");
                 
                 // PARALLEL PROCESSING
-                const concurrency = parseInt(document.getElementById('concurrency-select').value) || 10;
+                const concurrency = parseInt(document.getElementById('concurrency-select').value) || 5;
                 const results = await processQueue(ipQueue, concurrency);
                 
                 // Submit Results
@@ -455,8 +533,6 @@
             return { ok: true, time: Date.now() - start };
         } catch (err) {
             clearTimeout(timeoutId);
-            // AbortError = Timeout (Blocked by Firewall)
-            // TypeError = Connection Refused / SSL Error / CORS (Port is Open!)
             const time = Date.now() - start;
             if (err.name === 'AbortError') return { ok: false, time: time };
             return { ok: true, time: time };
@@ -479,7 +555,6 @@
         }
     }
 
-    // --- UI HELPERS ---
     function updateUI(scanning) {
         document.getElementById('btn-start').classList.toggle('hidden', scanning);
         document.getElementById('btn-stop').classList.toggle('hidden', !scanning);
@@ -497,9 +572,9 @@
     }
 
     function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    
     async function runSelfTest() {
         log("=== ЗАПУСК ДИАГНОСТИКИ ===", 'warn');
-        
         log("1. Проверка API (GET)...");
         try {
             const t1 = Date.now();
@@ -511,7 +586,6 @@
         }
 
         log("2. Анализ окружения...");
-        // checkEnvironment сам пишет логи
         const isNormal = await checkEnvironment(); 
         
         log("3. Тест отправки данных (POST)...");
@@ -522,16 +596,11 @@
                 body: JSON.stringify({ manual_region: "TEST_DIAGNOSTIC", results: [] })
             });
             
-            if (res.ok) {
-                log("   ✅ Бэкенд принимает данные (POST OK).", 'ok');
-            } else {
-                log(`   ❌ Бэкенд вернул ошибку: ${res.status}`, 'err');
-                log("   Возможные причины: Неверный токен зеркала или сбой на сервере.", 'warn');
-            }
+            if (res.ok) log("   ✅ Бэкенд принимает данные (POST OK).", 'ok');
+            else log(`   ❌ Бэкенд вернул ошибку: ${res.status}`, 'err');
         } catch(e) {
             log(`   ❌ Ошибка отправки: ${e.message}`, 'err');
         }
-
         log("=== КОНЕЦ ДИАГНОСТИКИ ===");
     }
 
