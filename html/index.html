@@ -539,20 +539,87 @@
         }
     }
 
-    async function submitResults(region, results) {
-        try {
-            await fetch(`${API_BASE}/submit`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    manual_region: region,
-                    results: results
-                })
-            });
-            log(`✅ Отправлено результатов: ${results.length}`, "ok");
-        } catch (e) {
-            log(`❌ Ошибка отправки: ${e.message}`, "err");
+    // --- КЛАСС ОТПРАВКИ РЕЗУЛЬТАТОВ (Очередь + Retry) ---
+    class ResultSender {
+        constructor() {
+            this.queue = [];
+            this.isSending = false;
+            this.retryLimit = 10; 
         }
+
+        add(data) {
+            this.queue.push({ data: data, attempts: 0 });
+            this.updateStatus();
+            this.process();
+        }
+
+        updateStatus() {
+            // Можно добавить визуальный индикатор очереди в будущем
+            // console.log(`Queue size: ${this.queue.length}`);
+        }
+
+        async process() {
+            if (this.isSending || this.queue.length === 0) return;
+            this.isSending = true;
+
+            const item = this.queue[0];
+            // Экспоненциальная задержка: 1с, 1.5с, 2.25с ... до 30с
+            const delay = Math.min(1000 * Math.pow(1.5, item.attempts), 30000); 
+
+            try {
+                if (item.attempts > 0) {
+                    await new Promise(r => setTimeout(r, delay));
+                    log(`🔄 Повторная отправка пакета (попытка ${item.attempts + 1})...`, 'warn');
+                }
+
+                const response = await fetch(`${API_BASE}/submit`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(item.data)
+                });
+
+                if (!response.ok) {
+                    // Если 4xx ошибка (например 400 Bad Request), нет смысла повторять вечно
+                    if (response.status >= 400 && response.status < 500) {
+                         throw new Error(`Fatal HTTP ${response.status}`);
+                    }
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                log(`✅ Пакет результатов успешно отправлен.`, 'ok');
+                this.queue.shift(); // Удаляем успешный
+                // loadGlobalStats(); // Можно обновить стату
+
+            } catch (e) {
+                // Если ошибка фатальная (4xx) - дропаем
+                if (e.message.includes('Fatal')) {
+                    log(`💀 Ошибка отправки (${e.message}). Данные отброшены.`, 'err');
+                    this.queue.shift();
+                } else {
+                    log(`❌ Ошибка отправки: ${e.message}. Повтор...`, 'warn');
+                    item.attempts++;
+                    if (item.attempts >= this.retryLimit) {
+                        log(`💀 Не удалось отправить пакет после ${this.retryLimit} попыток. Данные потеряны.`, 'err');
+                        this.queue.shift();
+                    }
+                }
+            } finally {
+                this.isSending = false;
+                this.updateStatus();
+                if (this.queue.length > 0) this.process();
+            }
+        }
+    }
+    
+    const sender = new ResultSender();
+
+    async function submitResults(region, results) {
+        // Просто добавляем в очередь, класс сам разберется
+        sender.add({
+            manual_region: region,
+            results: results
+        });
+        log(`📤 Результаты (${results.length}) добавлены в очередь отправки.`, "info");
     }
 
     function updateUI(scanning) {
