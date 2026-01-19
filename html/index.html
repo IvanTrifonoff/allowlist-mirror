@@ -352,8 +352,8 @@
     }
 
     // --- CHECK ENVIRONMENT (Google vs Yandex) ---
-    async function checkEnvironment() {
-        log("🔍 Проверка режима 'Белый список'...", 'warn');
+    async function checkEnvironment(silent = false) {
+        if (!silent) log("🔍 Проверка режима 'Белый список'...", 'warn');
         const TIMEOUT = 5000;
         const ruTarget = 'https://ya.ru/favicon.ico';
         const globalTarget = 'https://www.google.com/favicon.ico';
@@ -378,20 +378,22 @@
         // 1. RU
         const ru = await check(ruTarget);
         if (!ru.ok) {
-            log("   ⚠️ Ошибка: Яндекс недоступен. Нет интернета?", 'err');
+            if (!silent) log("   ⚠️ Ошибка: Яндекс недоступен. Нет интернета?", 'err');
             return false; // Разрешаем запуск (на удачу)
         }
-        log(`   ✅ RU доступен (${ru.time}ms)`, 'ok');
+        if (!silent) log(`   ✅ RU доступен (${ru.time}ms)`, 'ok');
 
         // 2. Global
         const world = await check(globalTarget);
         if (world.ok) {
             log(`   🌍 Google доступен (${world.time}ms).`, 'ok');
-            log("   🚀 Обнаружен нормальный интернет. Сканирование ОТМЕНЕНО.", 'warn');
+            if (!silent) log("   🚀 Обнаружен нормальный интернет. Сканирование ОТМЕНЕНО.", 'warn');
             return true; // IS_NORMAL = true -> STOP
         } else {
-            log("   ⛔️ Google недоступен!", 'err');
-            log("   🕵️‍♂️ Похоже, включен 'Белый список'. Запускаем скан...", 'ok');
+            if (!silent) {
+                log("   ⛔️ Google недоступен!", 'err');
+                log("   🕵️‍♂️ Похоже, включен 'Белый список'. Запускаем скан...", 'ok');
+            }
             return false; // IS_NORMAL = false -> START
         }
     }
@@ -409,18 +411,20 @@
         
         updateUI(true);
 
-        // CHECK ENVIRONMENT
-        const isNormal = await checkEnvironment();
-        if (isNormal) {
-            updateUI(false);
-            return;
-        }
-
         log("🚀 СТАРТ параллельного сканирования...", "ok");
 
         // Main Loop
         while (!state.stopRequested) {
             try {
+                // CHECK ENVIRONMENT (Inside loop per user request)
+                // Silent check to avoid log spam, but stop if Google becomes available
+                const isNormal = await checkEnvironment(true);
+                if (isNormal) {
+                    log("   🌍 Google доступен. Ждем включения белого списка...", 'warn');
+                    await sleep(5000);
+                    continue;
+                }
+
                 log("Запрос задач...", "info");
                 const res = await fetch(`${API_BASE}/tasks?mode=full&min_priority=1`);
                 if (!res.ok) throw new Error("API Error");
@@ -466,6 +470,7 @@
     }
 
     async function processQueue(queue, limit) {
+        if (queue.length === 0) return []; // Fix: prevent hang on empty queue
         let results = [];
         let index = 0;
         let active = 0;
