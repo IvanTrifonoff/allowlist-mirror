@@ -179,6 +179,7 @@
                 <option value="10">10 потоков</option>
             </select>
             <button class="btn-debug" onclick="runSelfTest()">🛠 Test</button>
+            <button class="btn-debug" onclick="downloadReport()">📊 Отчет</button>
         </div>
         
         <div class="progress-container" id="progress-container">
@@ -650,6 +651,15 @@
     }
 
     function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    
+    async function downloadReport() {
+        const mirrorId = prompt("Введите ваше имя ноды (Mirror ID) для авторизации:");
+        if (!mirrorId) return;
+        
+        const url = `${API_BASE}/report/csv?mirror_id=${encodeURIComponent(mirrorId)}`;
+        window.open(url, '_blank');
+        log("Запрос отчета отправлен...", "info");
+    }
     
     async function runSelfTest() {
         log("=== ЗАПУСК ДИАГНОСТИКИ ===", 'warn');
