@@ -542,8 +542,8 @@
         } catch (err) {
             clearTimeout(timeoutId);
             const time = Date.now() - start;
-            if (err.name === 'AbortError') return { ok: false, time: time };
-            return { ok: true, time: time };
+            // Любая ошибка сети (Timeout, Connection Refused, SSL Error) означает недоступность
+            return { ok: false, time: time };
         }
     }
 
