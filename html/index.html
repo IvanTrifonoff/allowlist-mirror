@@ -149,7 +149,7 @@
     <h1>
         📡 Allowlist Scanner
         <span id="header-info" style="font-size: 14px; color: #8b949e; font-weight: normal;">
-            v3.3 <span id="queue-status" style="color: #e3b341; margin-left: 10px;"></span>
+            v3.4 <span id="queue-status" style="color: #e3b341; margin-left: 10px;"></span>
         </span>
     </h1>
 
@@ -527,23 +527,35 @@
 
     async function probeIP(ip) {
         const start = Date.now();
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        try {
-            const target = ip.includes(':') ? `https://[${ip}]` : `https://${ip}`;
-            await fetch(target, { 
+        const check = (proto) => new Promise((resolve, reject) => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const url = proto + (ip.includes(':') ? `[${ip}]` : ip);
+            
+            fetch(url, { 
                 mode: 'no-cors', 
                 cache: 'no-store',
                 signal: controller.signal 
+            })
+            .then(() => {
+                clearTimeout(timeoutId);
+                resolve(true);
+            })
+            .catch((err) => {
+                clearTimeout(timeoutId);
+                reject(err);
             });
-            clearTimeout(timeoutId);
+        });
+
+        try {
+            await Promise.any([
+                check('http://'),
+                check('https://')
+            ]);
             return { ok: true, time: Date.now() - start };
-        } catch (err) {
-            clearTimeout(timeoutId);
-            const time = Date.now() - start;
-            // Любая ошибка сети (Timeout, Connection Refused, SSL Error) означает недоступность
-            return { ok: false, time: time };
+        } catch (e) {
+            return { ok: false, time: Date.now() - start };
         }
     }
 
